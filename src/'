@@ -101,25 +101,18 @@ def solve(moves=9):
   return *done_seq_state, seq_state
 
 
-def translate(seq_state, moves):
+def translate(solution):
 
-  seq_state = seq_state.reshape(-1, 9)
-  length = seq_state.shape[0]
-  seq = np.zeros((length, moves), np.int8) - 1
+  games = np.concatenate(solution, axis=0).reshape(-1, 9)
 
-  for move in range(moves):
-    game, pos = np.where(seq_state == move + 1)
-    seq[game, move] = pos
+  o_strt = solution[0].shape[0]
+  d_strt = o_strt + o_win.shape[0]
+  length = d_strt + draw.shape[0]
+  moves = draw.max()
+
+  seq = np.zeros((length, moves + 1), np.int8)
+
+  for move in range(1, moves + 1):
+    np.where(x_win == move)
 
   return seq
-
-
-if __name__ == '__main__':
-
-  moves = 9
-
-  x_seq_state, o_seq_state, d_seq_state = solve(moves)
-
-  x_seq = translate(x_seq_state, moves)
-  o_seq = translate(o_seq_state, moves)
-  d_seq = translate(d_seq_state, moves)
