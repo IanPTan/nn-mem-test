@@ -1,4 +1,5 @@
 import numpy as np
+import h5py as hp
 
 _identities = np.stack((np.identity(3), np.identity(3)[::-1]), axis=0)
 
@@ -114,6 +115,12 @@ def translate(seq_state, moves):
   return seq
 
 
+def save(file_path, **kwargs):
+  with hp.File(file_path, 'w') as file:
+    for name in kwargs:
+      file.create_dataset(name, data=kwargs[name])
+
+
 if __name__ == '__main__':
 
   moves = 9
@@ -123,3 +130,5 @@ if __name__ == '__main__':
   x_seq = translate(x_seq_state, moves)
   o_seq = translate(o_seq_state, moves)
   d_seq = translate(d_seq_state, moves)
+
+  save('dataset.h5', x_win=x_seq, o_win=o_seq, draw=d_seq)
