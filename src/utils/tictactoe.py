@@ -1,8 +1,8 @@
 import numpy as np
+import torch as pt
 import h5py as hp
 
 _identities = np.stack((np.identity(3), np.identity(3)[::-1]), axis=0)
-
 
 def to_state(seq_state, player_id):
 
@@ -12,7 +12,6 @@ def to_state(seq_state, player_id):
 
   return state
 
-
 def gen_sums(state):
 
   h_sums = state.sum(axis=-1)
@@ -20,7 +19,6 @@ def gen_sums(state):
   c_sums = np.tensordot(state, _identities, axes=[[-2, -1], [-2, -1]])
 
   return h_sums, v_sums, c_sums
-
 
 def gen_clos(sums, amt):
 
@@ -32,7 +30,6 @@ def gen_clos(sums, amt):
 
   return h_clos, v_clos, c_clos
 
-
 def gen_mask(clos):
 
   h_clos, v_clos, c_clos = clos
@@ -43,7 +40,6 @@ def gen_mask(clos):
 
   return p_mask
 
-
 def gen_movs(m_mask, w_mask, state):
 
   empty = state == 0
@@ -51,10 +47,9 @@ def gen_movs(m_mask, w_mask, state):
   w_movs = empty * w_mask
   
   free = (m_movs + w_movs).any(axis=(-2, -1)) == 0
-  m_movs = m_movs + empty * free.reshape(free.shape + (1, 1))
+  m_movs = m_movs * (1 - w_movs) + empty * free.reshape(free.shape + (1, 1))
 
   return m_movs, w_movs
-
 
 def gen_seq(movs, seq_state, stp):
 
@@ -67,7 +62,6 @@ def gen_seq(movs, seq_state, stp):
   new_seq_state[*m_inds] = stp + 1
 
   return new_seq_state
-
 
 def step(seq_state, stp):
 
@@ -88,7 +82,6 @@ def step(seq_state, stp):
 
   return new_seq_state, won_seq_state
 
-
 def solve(moves=9):
 
   ss = seq_state = np.zeros((1, 3, 3), np.int8)
@@ -100,7 +93,6 @@ def solve(moves=9):
     done_seq_state[player_id] = np.concatenate((done_seq_state[player_id], won_seq_state), axis=0)
 
   return *done_seq_state, seq_state
-
 
 def translate(seq_state, moves):
 
@@ -114,11 +106,22 @@ def translate(seq_state, moves):
 
   return seq
 
+def save(file_path, data, starts):
 
-def save(file_path, **kwargs):
   with hp.File(file_path, 'w') as file:
-    for name in kwargs:
-      file.create_dataset(name, data=kwargs[name])
+    file.create_dataset('games', data=data)
+    file.create_dataset('parts', data=starts)
+
+def to_states(seq):
+
+  length = seq.shape[0]
+  states = pt.zeros((length, 18))
+
+  for i, move in enumerate(seq):
+    player_id = i % 2
+    states[i:, move + player_id * 9] = 1
+
+  return states
 
 
 if __name__ == '__main__':
@@ -130,5 +133,6 @@ if __name__ == '__main__':
   x_seq = translate(x_seq_state, moves)
   o_seq = translate(o_seq_state, moves)
   d_seq = translate(d_seq_state, moves)
+  a_seq = np.concatenate((x_seq, o_seq, d_seq), axis=0)
 
-  save('dataset.h5', x_win=x_seq, o_win=o_seq, draw=d_seq)
+  save('dataset.h5', a_seq, np.array([x_seq.shape[0], x_seq.shape[0] + o_seq.shape[0]]))
