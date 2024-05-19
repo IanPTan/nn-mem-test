@@ -3,22 +3,16 @@ import torch as pt
 
 
 
-class Simple(pt.nn.Module):
+class S_rwkv(pt.nn.Module):
 
-  def __init__(self):
+  def __init__(self, in_len):
 
-    super(Simple, self).__init__()
+    super(RWKV, self).__init__()
+    
+    self.last_x = pt.zeros(in_len)
 
-    self.model = pt.nn.Sequential(
-        pt.nn.Linear(18, 128),
-        pt.nn.BatchNorm1d(128),
-        pt.nn.GELU(),
-        pt.nn.Linear(128, 9),
-        pt.nn.Softmax(dim=-1),
-        )
 
   def forward(self, x):
 
-    return self.model(x)
-
+    return []
 
