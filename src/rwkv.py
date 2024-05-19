@@ -14,9 +14,6 @@ class S_rwkv(pt.nn.Module):
       mem_len = in_len
     self.mem_len = mem_len
     
-    self.last_x = pt.zeros(in_len)
-    self.mem = pt.zeros((2, mem_len))
-
     self.decay = pt.nn.Parameter(pt.zeros(mem_len))
     self.rkv_w = pt.nn.Parameter(pt.randn(mem_len * 3, in_len * 2))
 
@@ -30,11 +27,19 @@ class S_rwkv(pt.nn.Module):
     self.sigmoid = pt.nn.Sigmoid()
     self.softmax = pt.nn.Softmax()
 
+    self.last_x = None
+    self.mem = None
+
   def forward(self, x):
 
-    xs = pt.concatenate((x, self.last_x))
-    rkv = self.rkv_w @ xs
-    r, k, v = rkv.reshape(3, self.mem_len)
+    if self.last_x == None:
+      self.last_x = pt.zeros(x.shape, device=x.device)
+    if self.mem == None:
+      self.mem = pt.zeros(x.shape[:-1] + (2, self.mem_len), device=x.device)
+
+    xs = pt.concatenate((x, self.last_x), dim=-1)
+    rkv = pt.tensordot(xs, self.rkv_w, dims=((-1,), (-1,)))
+    r, k, v = rkv.reshape(rkv.shape[:-1] + (3, self.mem_len))
 
     kv = pt.stack((pt.exp(k) * v, pt.exp(k)))
     d = pt.exp(-pt.exp(self.decay))
@@ -50,7 +55,7 @@ class S_rwkv(pt.nn.Module):
 
   def reset(self):
 
-    self.last_x *= 0
-    self.meme *= 0
+    self.last_x = None
+    self.mem = None
 
 
