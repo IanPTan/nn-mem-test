@@ -53,3 +53,4 @@ class S_rwkv(pt.nn.Module):
     self.last_x *= 0
     self.meme *= 0
 
+
