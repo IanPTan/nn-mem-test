@@ -5,18 +5,21 @@ import torch as pt
 
 class S_rwkv(pt.nn.Module):
 
-  def __init__(self, in_len, mem_len):
+  def __init__(self, in_len, mem_len=None):
 
-    super(RWKV, self).__init__()
+    super(S_rwkv, self).__init__()
 
     self.in_len = in_len
+    if mem_len == None:
+      mem_len = in_len
     self.mem_len = mem_len
     
     self.last_x = pt.zeros(in_len)
     self.mem = pt.zeros((2, mem_len))
 
-    self.decay = pt.nn.parameter(pt.zeros(mem_len))
-    self.rkv_dense = pt.nn.Linear(in_len * 2, mem_len * 3)
+    self.decay = pt.nn.Parameter(pt.zeros(mem_len))
+    self.rkv_w = pt.nn.Parameter(pt.randn(mem_len * 3, in_len * 2))
+
     self.out_dense = pt.nn.Sequential(
         pt.nn.Linear(mem_len, mem_len),
         pt.nn.GELU(),
@@ -30,7 +33,7 @@ class S_rwkv(pt.nn.Module):
   def forward(self, x):
 
     xs = pt.concatenate((x, self.last_x))
-    rkv = self.rkv_dense(xs)
+    rkv = self.rkv_w @ xs
     r, k, v = rkv.reshape(3, self.mem_len)
 
     kv = pt.stack((pt.exp(k) * v, pt.exp(k)))
@@ -41,7 +44,7 @@ class S_rwkv(pt.nn.Module):
 
     self.last_x = x.clone()
     out = self.out_dense(rwkv)
-    out = self.softmax(out + x)
+    out = self.softmax(out + x, dim=-1)
 
     return out
 
