@@ -23,7 +23,11 @@ class WinDataset(Dataset):
   def __getitem__(self, ind):
 
     raw_data = self.data[ind]
-    length = np.where(raw_data == -1)[0][0]
+    length = np.where(raw_data == -1)[0]
+    if len(length):
+      length = length[0]
+    else:
+      length = len(raw_data)
     data = pt.tensor(raw_data[:length], dtype=pt.int64)
 
     if self.full_state:
