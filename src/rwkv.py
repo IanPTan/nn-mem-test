@@ -3,11 +3,13 @@ import torch as pt
 
 
 
-class S_rwkv(pt.nn.Module):
+class mrwkv(pt.nn.Module):
 
-  def __init__(self, in_len, mem_len=None):
+  def __init__(self, in_len, mem_len=None, serial=False):
 
-    super(S_rwkv, self).__init__()
+    super(mrwkv, self).__init__()
+
+    self.serial=serial
 
     self.in_len = in_len
     if mem_len == None:
@@ -25,7 +27,7 @@ class S_rwkv(pt.nn.Module):
         )
 
     self.sigmoid = pt.nn.Sigmoid()
-    self.softmax = pt.nn.Softmax()
+    self.softmax = pt.nn.Softmax(dim=-1)
 
     self.last_x = None
     self.mem = None
@@ -35,21 +37,28 @@ class S_rwkv(pt.nn.Module):
     if self.last_x == None:
       self.last_x = pt.zeros(x.shape, device=x.device)
     if self.mem == None:
-      self.mem = pt.zeros(x.shape[:-1] + (2, self.mem_len), device=x.device)
+      self.mem = pt.zeros((2, *x.shape[:-1], self.mem_len), device=x.device)
 
     xs = pt.concatenate((x, self.last_x), dim=-1)
     rkv = pt.tensordot(xs, self.rkv_w, dims=((-1,), (-1,)))
-    r, k, v = rkv.reshape(rkv.shape[:-1] + (3, self.mem_len))
+    r, k, v = rkv.reshape(3, *rkv.shape[:-1], self.mem_len)
 
     kv = pt.stack((pt.exp(k) * v, pt.exp(k)))
     d = pt.exp(-pt.exp(self.decay))
-    self.mem = self.mem * d + kv
+
+    if self.serial:
+      self.mem = self.mem * d + kv
+    else:
+      self.mem[..., 0, :] = kv[..., 0, :]
+      for i in range(1, kv.shape[-2]):
+        self.mem[..., i, :] = self.mem[..., i - 1, :] * d + kv[..., i, :]
+
     wkv = self.mem[0] / self.mem[1]
     rwkv = self.sigmoid(r) * wkv
 
     self.last_x = x.clone()
     out = self.out_dense(rwkv)
-    out = self.softmax(out + x, dim=-1)
+    out = self.softmax(out + x)
 
     return out
 
