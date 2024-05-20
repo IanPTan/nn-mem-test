@@ -134,5 +134,6 @@ if __name__ == '__main__':
   o_seq = translate(o_seq_state, moves)
   d_seq = translate(d_seq_state, moves)
   a_seq = np.concatenate((x_seq, o_seq, d_seq), axis=0)
+  train = a_seq.copy()
 
-  save('dataset.h5', a_seq, np.array([x_seq.shape[0], x_seq.shape[0] + o_seq.shape[0]]))
+  save('tictactoe.h5', a_seq, np.array([x_seq.shape[0], x_seq.shape[0] + o_seq.shape[0]]))
