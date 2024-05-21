@@ -1,7 +1,7 @@
 import numpy as np
 import torch as pt
 from torch.utils.data import DataLoader, random_split
-from dataset.tttdatset import WinDataset
+from datasets.tttdatset import WinDataset
 
 
 
