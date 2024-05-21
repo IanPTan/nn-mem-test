@@ -1,11 +1,11 @@
 import numpy as np
 import torch as pt
 from torch.utils.data import DataLoader, random_split
-from dataset.tttdatset import WinDataset
+from dataset.rotedatset import RoteDataset
 
 
 
-class Simple(pt.nn.Module):
+class rwkv(pt.nn.Module):
 
   def __init__(self):
 
@@ -25,8 +25,8 @@ class Simple(pt.nn.Module):
 
 
 
-model = Simple()
-dataset = WinDataset('dataset.h5')
+model = rwkv()
+dataset = RoteDataset('dataset.h5')
 
 test_ratio = 0.1
 test_size = int(test_ratio * len(dataset))
