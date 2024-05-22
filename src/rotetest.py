@@ -1,3 +1,4 @@
+import matplotlib.pyplot as plt
 import numpy as np
 import torch as pt
 from torch.utils.data import DataLoader, random_split
@@ -51,13 +52,13 @@ class Model(pt.nn.Module):
       block.set_serial(state)
 
 
-epochs = 1000
+epochs = 500
 opt_num = 3
 seq_len = 5
 test_ratio = 0.1
-batch_size = 64
-hidden_size = 64
-lay_len = 8
+batch_size = 32
+hidden_size = 32
+lay_len = 16
 
 model = Model(opt_num + 1, hidden_size, lay_len)
 dataset = RoteDataset(opt_num, seq_len)
@@ -72,10 +73,11 @@ train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
 test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False)
 
 criterion = pt.nn.CrossEntropyLoss()
-optimizer = pt.optim.Adam(model.parameters(), lr=0.001, weight_decay=1e-5)
+optimizer = pt.optim.Adam(model.parameters(), lr=1e-6, weight_decay=1e-6)
 
 all_losses = pt.zeros(epochs)
 pt.autograd.set_detect_anomaly(True)
+print('Starting training.')
 for epoch in range(epochs):
   losses = pt.zeros(batch_len)
   for i, (inputs, targets) in enumerate(train_loader):
@@ -88,3 +90,6 @@ for epoch in range(epochs):
     optimizer.step()
   all_losses[epoch] = pt.mean(losses)
   print(f'Epoch {epoch + 1}, Loss: {pt.mean(losses)}')
+
+plt.plot(all_losses.detach())
+plt.show()
