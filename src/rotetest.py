@@ -52,13 +52,13 @@ class Model(pt.nn.Module):
       block.set_serial(state)
 
 
-epochs = 500
+epochs = 100
 opt_num = 3
 seq_len = 5
 test_ratio = 0.1
 batch_size = 32
-hidden_size = 32
-lay_len = 16
+hidden_size = 16
+lay_len = 1
 
 model = Model(opt_num + 1, hidden_size, lay_len)
 dataset = RoteDataset(opt_num, seq_len)

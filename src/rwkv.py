@@ -104,8 +104,6 @@ class Block(pt.nn.Module):
         DenseNorm(in_len, in_len),
         pt.nn.Linear(in_len, in_len),
         pt.nn.GELU(),
-        pt.nn.Linear(in_len, in_len),
-        pt.nn.GELU(),
         )
 
   def forward(self, x):
