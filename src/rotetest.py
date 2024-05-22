@@ -17,7 +17,7 @@ def test(ds, m, ind):
 
 class Model(pt.nn.Module):
 
-  def __init__(self, in_len, mem_len, serial=False):
+  def __init__(self, in_len, mem_len, lay_len, serial=False):
 
     super(Model, self).__init__()
 
@@ -26,17 +26,12 @@ class Model(pt.nn.Module):
     self.in_len = in_len
     self.mem_len = mem_len
 
+    self.rwkv_blocks = pt.nn.Sequential(*((rwkv.Block(mem_len, serial=serial),) * lay_len))
+
     self.model = pt.nn.Sequential(
         pt.nn.Linear(in_len, mem_len),
         rwkv.DenseNorm(mem_len, mem_len),
-        rwkv.Block(mem_len, serial=serial),
-        rwkv.Block(mem_len, serial=serial),
-        rwkv.Block(mem_len, serial=serial),
-        rwkv.Block(mem_len, serial=serial),
-        rwkv.Block(mem_len, serial=serial),
-        rwkv.Block(mem_len, serial=serial),
-        rwkv.Block(mem_len, serial=serial),
-        rwkv.Block(mem_len, serial=serial),
+        self.rwkv_blocks,
         pt.nn.Linear(mem_len, in_len),
         pt.nn.Softmax(dim=-1),
         )
@@ -47,13 +42,13 @@ class Model(pt.nn.Module):
 
   def reset(self):
 
-    for i in range(2, 6):
-      self.model[i].reset()
+    for block in self.rwkv_blocks:
+      block.reset()
 
   def set_serial(self, state):
 
-    for i in range(2, 6):
-      self.model[i].set_serial(state)
+    for block in self.rwkv_blocks:
+      block.set_serial(state)
 
 
 epochs = 1000
@@ -62,8 +57,9 @@ seq_len = 5
 test_ratio = 0.1
 batch_size = 64
 hidden_size = 64
+lay_len = 8
 
-model = Model(opt_num + 1, hidden_size)
+model = Model(opt_num + 1, hidden_size, lay_len)
 dataset = RoteDataset(opt_num, seq_len)
 
 test_size = int(test_ratio * len(dataset))
@@ -90,6 +86,5 @@ for epoch in range(epochs):
     losses[i] = loss
     loss.backward()
     optimizer.step()
-    print('worked')
   all_losses[epoch] = pt.mean(losses)
   print(f'Epoch {epoch + 1}, Loss: {pt.mean(losses)}')
