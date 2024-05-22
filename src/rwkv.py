@@ -43,33 +43,38 @@ class Attention(pt.nn.Module):
 
   def forward(self, x):
 
-    if self.last_x == None and self.serial:
-      self.last_x = pt.zeros(x.shape, device=x.device)
-    if self.last_x == None and not self.serial:
-      self.last_x = pt.cat((pt.zeros((*x.shape[:-2], 1, x.shape[-1]), device=x.device), x[..., :-1, :]), dim=-2)
+    if self.last_x == None:
+      if self.serial:
+        self.last_x = pt.zeros(x.shape, device=x.device)
+      else:
+        self.last_x = pt.cat((pt.zeros((*x.shape[:-2], 1, x.shape[-1]), device=x.device), x[..., :-1, :]), dim=-2)
 
     xs = pt.concatenate((x, self.last_x), dim=-1)
+    self.last_x = x.clone()
     rkv = pt.tensordot(xs, self.rkv_w, dims=((-1,), (-1,)))
     r, k, v = rkv.reshape(3, *rkv.shape[:-1], self.mem_len)
 
     kv = pt.stack((pt.exp(k) * v, pt.exp(k)))
     d = pt.exp(-pt.exp(self.decay))
 
-    if self.mem == None and self.serial:
-      self.mem = kv
-    if self.mem != None and self.serial:
-      self.mem = self.mem * d + kv
+    if self.serial:
+      if self.mem == None:
+        mem = kv
+      else:
+        mem = self.mem * d + kv
+      self.mem = mem
 
-    if not self.serial:
-      # need to make zero tensor for start or accept existing
-      self.mem[..., 0, :] = kv[..., 0, :]
-      for i in range(1, kv.shape[-2]):
-        self.mem[..., i, :] = self.mem[..., i - 1, :] * d + kv[..., i, :]
+    else:
+      mem = pt.zeros(kv.shape, device=x.device)
+      if self.mem == None:
+        self.mem=pt.zeros(mem[..., 0, :].shape, device=x.device)
+      for i in range(kv.shape[-2]):
+        self.mem = self.mem * d + kv[..., i, :]
+        mem[..., i, :] = self.mem
 
-    wkv = self.mem[0] / self.mem[1]
+    wkv = mem[0] / mem[1]
     rwkv = self.sigmoid(r) * wkv
 
-    self.last_x = x.clone()
     out = pt.tensordot(rwkv, self.out_w, dims=((-1,), (-1,)))
 
     return out
@@ -109,3 +114,11 @@ class Block(pt.nn.Module):
     x = self.block2(x) + x
 
     return x
+  
+  def reset(self):
+
+    self.block1[1].reset()
+
+  def set_serial(self, state):
+
+    self.serial = state
