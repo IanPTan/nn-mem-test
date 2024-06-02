@@ -52,13 +52,13 @@ class Model(pt.nn.Module):
       block.set_serial(state)
 
 
-epochs = 100
+epochs = 500
 opt_num = 3
 seq_len = 5
 test_ratio = 0.1
-batch_size = 32
-hidden_size = 16
-lay_len = 1
+batch_size = 16
+hidden_size = 32
+lay_len = 4
 
 model = Model(opt_num + 1, hidden_size, lay_len)
 dataset = RoteDataset(opt_num, seq_len)
@@ -73,7 +73,7 @@ train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
 test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False)
 
 criterion = pt.nn.CrossEntropyLoss()
-optimizer = pt.optim.Adam(model.parameters(), lr=1e-6, weight_decay=1e-6)
+optimizer = pt.optim.Adam(model.parameters(), lr=1e-3, weight_decay=1e-4)
 
 all_losses = pt.zeros(epochs)
 pt.autograd.set_detect_anomaly(True)
@@ -90,6 +90,6 @@ for epoch in range(epochs):
     optimizer.step()
   all_losses[epoch] = pt.mean(losses)
   print(f'Epoch {epoch + 1}, Loss: {pt.mean(losses)}')
-
+pt.save(model.state_dict(), 'backup.ckpt')
 plt.plot(all_losses.detach())
 plt.show()

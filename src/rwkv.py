@@ -52,7 +52,7 @@ class Attention(pt.nn.Module):
     xs = pt.concatenate((x, self.last_x), dim=-1)
     self.last_x = x.clone()
     rkv = pt.tensordot(xs, self.rkv_w, dims=((-1,), (-1,)))
-    r, k, v = rkv.reshape(3, *rkv.shape[:-1], self.mem_len)
+    r, k, v = rkv.reshape(*rkv.shape[:-1], 3, self.mem_len).movedim(-2, 0)
 
     kv = pt.stack((pt.exp(k) * v, pt.exp(k)))
     d = pt.exp(-pt.exp(self.decay))
