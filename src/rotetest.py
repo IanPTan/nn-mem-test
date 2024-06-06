@@ -59,15 +59,14 @@ class Model(pt.nn.Module):
     for block in self.rwkv_blocks:
       block.set_serial(state)
 
-epochs = 5000
+epochs = 500
 opt_num = 3
-seq_len = 10
+seq_len = 5
 test_ratio = 0.1
-batch_size = 10000
+batch_size = 243
 hidden_size = 32
-lay_len = 4
+lay_len = 2
 
-model = Model(opt_num + 1, opt_num, hidden_size, lay_len).to(device)
 dataset = RoteDataset(opt_num, seq_len)
 
 test_size = int(test_ratio * len(dataset))
@@ -80,8 +79,9 @@ train_dataset, test_dataset = random_split(dataset, [train_size, test_size])
 train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
 test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False)
 
+model = Model(opt_num + 1, opt_num, hidden_size, lay_len).to(device)
 criterion = pt.nn.CrossEntropyLoss()
-optimizer = pt.optim.Adam(model.parameters(), lr=1e-3, weight_decay=1e-4)
+optimizer = pt.optim.Adam(model.parameters(), lr=1e-3, weight_decay=1e-3)
 
 all_losses = pt.zeros(epochs)
 pt.autograd.set_detect_anomaly(True)
