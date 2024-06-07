@@ -2,6 +2,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import torch as pt
 from torch.utils.data import DataLoader, random_split
+from time import time
 from datasets.rotedataset import RoteDataset
 import rwkv
 
@@ -63,42 +64,87 @@ epochs = 500
 opt_num = 3
 seq_len = 5
 test_ratio = 0.1
-batch_size = 243
+batch_size = 219
 hidden_size = 32
 lay_len = 2
+backup_interval = 100
+trials = 10
 
 dataset = RoteDataset(opt_num, seq_len)
 
 test_size = int(test_ratio * len(dataset))
 train_size = len(dataset) - test_size
 
-batch_len = train_size // batch_size + bool(train_size % batch_size)
+train_batch_len = train_size // batch_size + bool(train_size % batch_size)
+test_batch_len = test_size // test_size + bool(test_size % batch_size)
 
 train_dataset, test_dataset = random_split(dataset, [train_size, test_size])
 
 train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
 test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False)
 
-model = Model(opt_num + 1, opt_num, hidden_size, lay_len).to(device)
-criterion = pt.nn.CrossEntropyLoss()
-optimizer = pt.optim.Adam(model.parameters(), lr=1e-3, weight_decay=1e-3)
+models = []
+times = []
+all_trial_losses = []
+all_trial_test_losses = []
 
-all_losses = pt.zeros(epochs)
-pt.autograd.set_detect_anomaly(True)
-print(f'Starting training using {device}.')
-for epoch in range(epochs):
-  losses = pt.zeros(batch_len)
-  for i, (inputs, targets) in enumerate(train_loader):
-    inputs, targets = inputs.to(device), targets.to(device)
-    optimizer.zero_grad()
-    model.reset()
-    outputs = model(inputs)[:, seq_len:].permute(0, 2, 1)
-    loss = criterion(outputs, targets)
-    losses[i] = loss
-    loss.backward()
-    optimizer.step()
-  all_losses[epoch] = pt.mean(losses)
-  print(f'Epoch {epoch + 1}, Loss: {pt.mean(losses)}')
+# pt.autograd.set_detect_anomaly(True)
+for trial in range(trials):
+
+  model = Model(opt_num + 1, opt_num, hidden_size, lay_len).to(device)
+  criterion = pt.nn.CrossEntropyLoss()
+  optimizer = pt.optim.Adam(model.parameters(), lr=1e-3, weight_decay=1e-4)
+
+  all_losses = pt.zeros(epochs)
+  all_test_losses = pt.zeros(epochs)
+
+  print(f'Starting training trial {trial + 1}/{trials}, using {device}.')
+
+  start = time()
+  for epoch in range(epochs):
+
+    losses = pt.zeros(train_batch_len)
+    test_losses = pt.zeros(test_batch_len)
+
+    model.train()
+    for i, (inputs, targets) in enumerate(train_loader):
+      inputs, targets = inputs.to(device), targets.to(device)
+      optimizer.zero_grad()
+      model.reset()
+      outputs = model(inputs)[:, seq_len:].permute(0, 2, 1)
+      loss = criterion(outputs, targets)
+      losses[i] = loss
+      loss.backward()
+      optimizer.step()
+
+    model.eval()
+    with pt.no_grad():
+      for i, (inputs, targets) in enumerate(test_loader):
+        inputs, targets = inputs.to(device), targets.to(device)
+        model.reset()
+        outputs = model(inputs)[:, seq_len:].permute(0, 2, 1)
+        loss = criterion(outputs, targets)
+        test_losses[i] = loss
+
+    all_losses[epoch] = pt.mean(losses)
+    all_test_losses[epoch] = pt.mean(test_losses)
+
+    if (epoch + 1) % backup_interval == 0:
+      print(f'Epoch {epoch + 1}/{epochs}, time: {time() - start:.3f}, Loss: {pt.mean(losses)}')
+      pt.save(model.state_dict(), 'backup.ckpt')
+
+  models.append(model.state_dict())
+  times.append(time() - start)
+  all_trial_losses.append(all_losses.detach())
+  all_trial_test_losses.append(all_test_losses.detach())
+  print(f'Finished! ({times[-1]:.3f}s)')
+
 pt.save(model.state_dict(), 'backup.ckpt')
-plt.plot(all_losses.detach())
+times = np.array(times)
+print(f'Finished all trials in {times.sum():.3f}s with average time {times.mean():.3f}s.')
+for all_losses in all_trial_losses:
+  plt.plot(all_losses)
+plt.show()
+for all_test_losses in all_trial_test_losses:
+  plt.plot(all_test_losses)
 plt.show()
